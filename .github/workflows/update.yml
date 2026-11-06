@@ -17,11 +17,15 @@ jobs:
         run: |
           curl -fsSL --retry 3 -m 120 -o cameras.csv \
             "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/EA5E6FCD-B82D-43B7-A5CF-E9893253187E/resource/110DAA6E-A012-44DC-8F84-891F2A6F0805/download"
+      - name: 下載各縣市路口科技執法（目前：高雄市）
+        # 抓不到不影響測速資料，只是這次沒有科技執法點
+        run: |
+          curl -fsSL --retry 3 -m 120 -o kcg.json             "https://openapi.kcg.gov.tw/Api/Service/Get/8cd64be2-4fbc-4690-9664-ccf20bd25cfc" || rm -f kcg.json
       - name: 轉換
-        run: python3 tools/convert_cameras.py cameras.csv -o cameras.json
+        run: python3 tools/convert_cameras.py cameras.csv $(ls kcg.json 2>/dev/null) -o cameras.json
       - name: 有變動才提交
         run: |
-          rm cameras.csv
+          rm -f cameras.csv kcg.json
           git diff --quiet && exit 0
           # ponytail: 筆數太少視為來源出錯，不覆蓋（App 端也會再檢查一次）
           python3 -c "import json,sys; sys.exit(json.load(open('cameras.meta.json'))['count'] < 500)"
