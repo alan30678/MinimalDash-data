@@ -18,18 +18,19 @@ jobs:
           curl -fsSL --retry 3 -m 120 -o cameras.csv \
             "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/EA5E6FCD-B82D-43B7-A5CF-E9893253187E/resource/110DAA6E-A012-44DC-8F84-891F2A6F0805/download"
       - name: 下載各縣市路口科技執法（目前：高雄市）
-        # 抓不到不影響測速資料，只是這次沒有科技執法點
+        # 縣市網站常擋國外主機：抓得到才更新 sources/ 裡存的那份，抓不到就沿用
         run: |
-          curl -fsSL --retry 3 -m 120 -o kcg.json             "https://openapi.kcg.gov.tw/Api/Service/Get/8cd64be2-4fbc-4690-9664-ccf20bd25cfc" || rm -f kcg.json
+          curl -fsSL --retry 2 -m 60 -o /tmp/kcg.json             "https://openapi.kcg.gov.tw/Api/Service/Get/8cd64be2-4fbc-4690-9664-ccf20bd25cfc"             && python3 -c "import json;json.load(open('/tmp/kcg.json',encoding='utf-8-sig'))"             && mv /tmp/kcg.json sources/kcg.json || echo "高雄市資料抓不到，沿用上次的"
       - name: 轉換
-        run: python3 tools/convert_cameras.py cameras.csv $(ls kcg.json 2>/dev/null) -o cameras.json
+        run: python3 tools/convert_cameras.py cameras.csv sources/*.json -o cameras.json
       - name: 有變動才提交
         run: |
-          rm -f cameras.csv kcg.json
+          rm -f cameras.csv
           git diff --quiet && exit 0
           # ponytail: 筆數太少視為來源出錯，不覆蓋（App 端也會再檢查一次）
           python3 -c "import json,sys; sys.exit(json.load(open('cameras.meta.json'))['count'] < 500)"
           git config user.name "github-actions[bot]"
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
-          git commit -am "更新測速資料 $(date +%F)"
+          git add -A
+          git commit -m "更新測速資料 $(date +%F)"
           git push
